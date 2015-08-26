@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+func verifyOfx(t *testing.T, _ofx *Ofx, acctNum string, routingID string) {
+
+	if _ofx == nil {
+		t.Errorf("Nil ofx\n")
+	}
+
+	if _ofx.AccountNumber != acctNum {
+		t.Errorf("Wrong account number. Expected: %s Actual: %s\n", acctNum, _ofx.AccountNumber)
+	}
+
+	if _ofx.RoutingCode != routingID {
+		t.Errorf("Wrong routing number. Expected: %s Actual: %s\n", routingID, _ofx.RoutingCode)
+	}
+}
+
 func TestParseV102(t *testing.T) {
 	f, err := os.Open("testdata/v102.ofx")
 	if err != nil {
@@ -16,9 +31,7 @@ func TestParseV102(t *testing.T) {
 		t.Error(err)
 	}
 
-	if _ofx == nil {
-		t.Errorf("Nil ofx %s\n", _ofx)
-	}
+	verifyOfx(t, _ofx, "098-121", "987654321")
 }
 
 func TestParseV103(t *testing.T) {
@@ -33,6 +46,8 @@ func TestParseV103(t *testing.T) {
 	}
 
 	if _ofx == nil {
-		t.Errorf("Nil ofx %s\n", _ofx)
+		t.Errorf("Nil ofx\n")
 	}
+
+	verifyOfx(t, _ofx, "098-121", "987654321")
 }
