@@ -3,9 +3,12 @@ package ofx
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"strings"
+	"time"
 )
 
 // AccountType indicates type of account represented by OFX document.
@@ -20,29 +23,83 @@ const (
 	SAVING AccountType = iota
 )
 
+//go:generate stringer -type=TransactionType
+// TransactionType indicates type of transaction (Debit/Credit).
+type TransactionType int
+
+const (
+	DEBIT  TransactionType = iota
+	CREDIT TransactionType = iota
+)
+
 type nextKey int
 
 const (
-	none      nextKey = iota
-	acctID    nextKey = iota
-	routingID nextKey = iota
+	none            nextKey = iota
+	acctID          nextKey = iota
+	routingID       nextKey = iota
+	transAmount     nextKey = iota
+	transDatePosted nextKey = iota
+	transUserDate   nextKey = iota
+	transID         nextKey = iota
+	transDesc       nextKey = iota
 )
+
+type Amount struct {
+	value big.Rat
+}
+
+func (a *Amount) ParseFromString(s string) error {
+	_, ok := a.value.SetString(s)
+	if !ok {
+		return fmt.Errorf("Unable to parse string '%s' as an amount\n", s)
+	}
+
+	return nil
+}
+
+type Transaction struct {
+	Type        TransactionType
+	Description string
+	PostedDate  time.Time
+	UserDate    time.Time
+	ID          string
+	Amount      Amount
+}
+
+func (t Transaction) String() string {
+	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.value.String())
+}
 
 // Ofx contains a parsed Ofx document.
 type Ofx struct {
-	ActType       AccountType
+	Type          AccountType
 	RoutingCode   string
 	AccountNumber string
+	Transactions  []*Transaction
+}
+
+func (o Ofx) String() string {
+	var buf bytes.Buffer
+
+	buf.WriteString(fmt.Sprintf("Account Type: %s\nRouting Code: %s\nAccount Number: %s\n", o.Type, o.RoutingCode, o.AccountNumber))
+
+	for _, t := range o.Transactions {
+		buf.WriteString(fmt.Sprintf("%s\n", t))
+	}
+
+	return buf.String()
 }
 
 // Parse parses an input stream and produces an Ofx instance summarizing it. In case of any errors
 // during the parse, a non-nil error is returned.
 func Parse(f io.Reader) (*Ofx, error) {
-	ofx := &Ofx{}
+	ofx := &Ofx{Transactions: []*Transaction{}}
 	stack := make([]string, 1000)
 	stackPos := 0
 
 	next := none
+	var trans *Transaction = nil
 
 	dec := xml.NewDecoder(f)
 
@@ -59,6 +116,21 @@ func Parse(f io.Reader) (*Ofx, error) {
 
 			case "BANKID":
 				next = routingID
+
+			case "STMTTRN":
+				trans = &Transaction{}
+
+			case "DTPOSTED":
+				next = transDatePosted
+
+			case "FITID":
+				next = transID
+
+			case "TRNAMT":
+				next = transAmount
+
+			case "NAME":
+				next = transDesc
 			}
 
 		case xml.CharData:
@@ -74,12 +146,34 @@ func Parse(f io.Reader) (*Ofx, error) {
 
 			case routingID:
 				ofx.RoutingCode = res
+
+			case transDesc:
+				trans.Description = res
+
+			case transID:
+				trans.ID = res
+
+			case transAmount:
+				if err := trans.Amount.ParseFromString(res); err != nil {
+					return nil, err
+				}
+
+				if trans.Amount.value.Sign() == 1 {
+					trans.Type = CREDIT
+				} else {
+					trans.Type = DEBIT
+				}
 			}
 
 			next = none
 
 		case xml.EndElement:
 			for stackPos != 0 {
+				if stack[stackPos-1] == "STMTTRN" {
+					ofx.Transactions = append(ofx.Transactions, trans)
+					trans = nil
+				}
+
 				if stack[stackPos-1] == t.Name.Local {
 					stackPos--
 					break

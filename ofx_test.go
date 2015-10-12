@@ -1,12 +1,13 @@
 package ofx
 
 import (
+	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func verifyOfx(t *testing.T, _ofx *Ofx, acctNum string, routingID string) {
-
 	if _ofx == nil {
 		t.Errorf("Nil ofx\n")
 	}
@@ -50,4 +51,21 @@ func TestParseV103(t *testing.T) {
 	}
 
 	verifyOfx(t, _ofx, "098-121", "987654321")
+}
+
+func BenchmarkOFXParse(b *testing.B) {
+	bts, err := ioutil.ReadFile("testdata/v103.ofx")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		r := bytes.NewReader(bts)
+		if _, err := Parse(r); err != nil {
+			b.Errorf("Error while parsing: %v\n", err)
+		}
+	}
 }
