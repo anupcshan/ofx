@@ -46,11 +46,16 @@ const (
 )
 
 type Amount struct {
-	value big.Rat
+	ratValue big.Rat
+}
+
+func (a *Amount) FloatValue() float64 {
+	value, _ := a.ratValue.Float64()
+	return value
 }
 
 func (a *Amount) ParseFromString(s string) error {
-	_, ok := a.value.SetString(s)
+	_, ok := a.ratValue.SetString(s)
 	if !ok {
 		return fmt.Errorf("Unable to parse string '%s' as an amount\n", s)
 	}
@@ -68,7 +73,7 @@ type Transaction struct {
 }
 
 func (t Transaction) String() string {
-	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.value.String())
+	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.ratValue.String())
 }
 
 // Ofx contains a parsed Ofx document.
@@ -158,7 +163,7 @@ func Parse(f io.Reader) (*Ofx, error) {
 					return nil, err
 				}
 
-				if trans.Amount.value.Sign() == 1 {
+				if trans.Amount.ratValue.Sign() == 1 {
 					trans.Type = CREDIT
 				} else {
 					trans.Type = DEBIT
