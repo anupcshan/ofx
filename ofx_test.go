@@ -16,8 +16,8 @@ func verifyOfx(t *testing.T, _ofx *Ofx, acctNum string, routingID string) {
 		t.Errorf("Wrong account number. Expected: %s Actual: %s\n", acctNum, _ofx.AccountNumber)
 	}
 
-	if _ofx.RoutingCode != routingID {
-		t.Errorf("Wrong routing number. Expected: %s Actual: %s\n", routingID, _ofx.RoutingCode)
+	if _ofx.BankCode != routingID {
+		t.Errorf("Wrong routing number. Expected: %s Actual: %s\n", routingID, _ofx.BankCode)
 	}
 }
 
