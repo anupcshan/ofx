@@ -37,7 +37,8 @@ type nextKey int
 const (
 	none            nextKey = iota
 	acctID          nextKey = iota
-	routingID       nextKey = iota
+	branchID        nextKey = iota
+	bankID          nextKey = iota
 	transAmount     nextKey = iota
 	transDatePosted nextKey = iota
 	transUserDate   nextKey = iota
@@ -46,11 +47,11 @@ const (
 )
 
 type Amount struct {
-	value big.Rat
+	Value big.Rat
 }
 
 func (a *Amount) ParseFromString(s string) error {
-	_, ok := a.value.SetString(s)
+	_, ok := a.Value.SetString(s)
 	if !ok {
 		return fmt.Errorf("Unable to parse string '%s' as an amount\n", s)
 	}
@@ -68,13 +69,14 @@ type Transaction struct {
 }
 
 func (t Transaction) String() string {
-	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.value.String())
+	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.Value.String())
 }
 
 // Ofx contains a parsed Ofx document.
 type Ofx struct {
 	Type          AccountType
-	RoutingCode   string
+	BankCode      string
+	BranchCode    string
 	AccountNumber string
 	Transactions  []*Transaction
 }
@@ -82,7 +84,7 @@ type Ofx struct {
 func (o Ofx) String() string {
 	var buf bytes.Buffer
 
-	buf.WriteString(fmt.Sprintf("Account Type: %s\nRouting Code: %s\nAccount Number: %s\n", o.Type, o.RoutingCode, o.AccountNumber))
+	buf.WriteString(fmt.Sprintf("Account Type: %s\nBank Code: %s\nBranch Code: %s\nAccount Number: %s\n", o.Type, o.BankCode, o.BranchCode, o.AccountNumber))
 
 	for _, t := range o.Transactions {
 		buf.WriteString(fmt.Sprintf("%s\n", t))
@@ -114,8 +116,11 @@ func Parse(f io.Reader) (*Ofx, error) {
 			case "ACCTID":
 				next = acctID
 
+			case "BRANCHID":
+				next = branchID
+
 			case "BANKID":
-				next = routingID
+				next = bankID
 
 			case "STMTTRN":
 				trans = &Transaction{}
@@ -144,8 +149,11 @@ func Parse(f io.Reader) (*Ofx, error) {
 			case acctID:
 				ofx.AccountNumber = res
 
-			case routingID:
-				ofx.RoutingCode = res
+			case branchID:
+				ofx.BranchCode = res
+
+			case bankID:
+				ofx.BankCode = res
 
 			case transDesc:
 				trans.Description = res
@@ -158,7 +166,7 @@ func Parse(f io.Reader) (*Ofx, error) {
 					return nil, err
 				}
 
-				if trans.Amount.value.Sign() == 1 {
+				if trans.Amount.Value.Sign() == 1 {
 					trans.Type = CREDIT
 				} else {
 					trans.Type = DEBIT
