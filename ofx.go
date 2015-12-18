@@ -47,16 +47,11 @@ const (
 )
 
 type Amount struct {
-	ratValue big.Rat
-}
-
-func (a *Amount) FloatValue() float64 {
-	value, _ := a.ratValue.Float64()
-	return value
+	Value big.Rat
 }
 
 func (a *Amount) ParseFromString(s string) error {
-	_, ok := a.ratValue.SetString(s)
+	_, ok := a.Value.SetString(s)
 	if !ok {
 		return fmt.Errorf("Unable to parse string '%s' as an amount\n", s)
 	}
@@ -74,7 +69,7 @@ type Transaction struct {
 }
 
 func (t Transaction) String() string {
-	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.ratValue.String())
+	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.Value.String())
 }
 
 // Ofx contains a parsed Ofx document.
@@ -89,7 +84,7 @@ type Ofx struct {
 func (o Ofx) String() string {
 	var buf bytes.Buffer
 
-	buf.WriteString(fmt.Sprintf("Account Type: %s\nRouting Code: %s\nAccount Number: %s\n", o.Type, o.BankCode, o.AccountNumber))
+	buf.WriteString(fmt.Sprintf("Account Type: %s\nBank Code: %s\nBranch Code: %s\nAccount Number: %s\n", o.Type, o.BankCode, o.BranchCode, o.AccountNumber))
 
 	for _, t := range o.Transactions {
 		buf.WriteString(fmt.Sprintf("%s\n", t))
@@ -171,7 +166,7 @@ func Parse(f io.Reader) (*Ofx, error) {
 					return nil, err
 				}
 
-				if trans.Amount.ratValue.Sign() == 1 {
+				if trans.Amount.Value.Sign() == 1 {
 					trans.Type = CREDIT
 				} else {
 					trans.Type = DEBIT
