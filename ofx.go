@@ -69,7 +69,7 @@ type Transaction struct {
 }
 
 func (t Transaction) String() string {
-	return fmt.Sprintf("T: %s DESC: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.Value.String())
+	return fmt.Sprintf("T: %s Desc: %s Post Date: %s ID: %s Amount: %s", t.Type, t.Description, t.PostedDate, t.ID, t.Amount.Value.String())
 }
 
 // Ofx contains a parsed Ofx document.
@@ -160,6 +160,18 @@ func Parse(f io.Reader) (*Ofx, error) {
 
 			case transID:
 				trans.ID = res
+
+			case transDatePosted:
+				if len(res) < 8 {
+					return nil, fmt.Errorf("Invalid date posted string: '%s'", res)
+				}
+				res = res[:8]
+				// YYYYMMDD
+				if t, err := time.Parse("20060102", res); err != nil {
+					return nil, err
+				} else {
+					trans.PostedDate = t
+				}
 
 			case transAmount:
 				if err := trans.Amount.ParseFromString(res); err != nil {
