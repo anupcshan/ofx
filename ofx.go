@@ -44,6 +44,7 @@ const (
 	transUserDate   nextKey = iota
 	transID         nextKey = iota
 	transDesc       nextKey = iota
+	transMemo       nextKey = iota
 )
 
 type Amount struct {
@@ -62,6 +63,7 @@ func (a *Amount) ParseFromString(s string) error {
 type Transaction struct {
 	Type        TransactionType
 	Description string
+	Memo        string
 	PostedDate  time.Time
 	UserDate    time.Time
 	ID          string
@@ -136,6 +138,8 @@ func Parse(f io.Reader) (*Ofx, error) {
 
 			case "NAME":
 				next = transDesc
+			case "MEMO":
+				next = transMemo
 			}
 
 		case xml.CharData:
@@ -157,6 +161,9 @@ func Parse(f io.Reader) (*Ofx, error) {
 
 			case transDesc:
 				trans.Description = res
+
+			case transMemo:
+				trans.Memo = res
 
 			case transID:
 				trans.ID = res
